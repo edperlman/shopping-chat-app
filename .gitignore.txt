@@ -1,0 +1,69 @@
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# OS or Editor directories/files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node modules & Packages
+node_modules/
+.bower_components/
+jspm_packages/
+
+# Build / Dist / Coverage
+dist/
+build/
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+*.tscache
+
+# Next.js or React Native (if relevant)
+.next/
+.expo/
+android/
+ios/
+
+# Environment / Secrets
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+
+# npm / Yarn / PNPM lockfiles (if you prefer one lock file)
+# Typically keep package-lock.json or yarn.lock in the repo, 
+# but if your policy is to ignore lockfiles, uncomment the relevant line:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Possibly Docker/Compose artifacts
+docker-compose.override.yml
+*.env.docker
+
+# Others
+.sass-cache/
+*.iml
+*.swp
+*.swo
+
+# Rocket.Chat or old references (if any leftover)
+rocketchat/
+
+# Mongo leftover (if you had local DB config)
+mongo_data/
