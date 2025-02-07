@@ -1,17 +1,22 @@
 # Logs
-*.log
 logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Runtime data
 pids
 *.pid
 *.seed
+*.pid.lock
 
-# OS or Editor directories/files
+# OS or Editor
 .DS_Store
 Thumbs.db
 .vscode/
@@ -27,43 +32,66 @@ dist/
 build/
 coverage/
 .nyc_output/
+lib-cov
+.cache
+.parcel-cache
+.expo/
+.next/
+.nuxt
+.vuepress/dist
 
 # TypeScript
 *.tsbuildinfo
 *.tscache
 
-# Next.js or React Native (if relevant)
-.next/
-.expo/
-android/
-ios/
+# Yarn/PNPM
+.yarn*
+.pnp.*
+.npm
+.yarn-integrity
 
-# Environment / Secrets
+# ESLint & Stylelint caches
+.eslintcache
+.stylelintcache
+
+# Docker/Compose artifacts
+docker-compose.override.yml
+*.env.docker
+
+# Env files
 .env
 .env.*
 .env.local
 .env.production
 .env.development
+.env.production.local
+.env.development.local
+.env.test.local
 
-# npm / Yarn / PNPM lockfiles (if you prefer one lock file)
-# Typically keep package-lock.json or yarn.lock in the repo, 
-# but if your policy is to ignore lockfiles, uncomment the relevant line:
+# Optional REPL histories
+.node_repl_history
+.tern-port
+
+# Serverless directories
+.serverless/
+
+# Yarn/PNPM logs
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage Tools
+*.lcov
+.nyc_output/
+
+# Bower
+bower_components/
+
+# Additional leftover references
+rocketchat/
+mongo_data/
+
+# Possibly uncomment if you don't track lockfiles
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
-
-# Possibly Docker/Compose artifacts
-docker-compose.override.yml
-*.env.docker
-
-# Others
-.sass-cache/
-*.iml
-*.swp
-*.swo
-
-# Rocket.Chat or old references (if any leftover)
-rocketchat/
-
-# Mongo leftover (if you had local DB config)
-mongo_data/
