@@ -1,23 +1,23 @@
 /**
  * modules/Admin/controllers/adminController.js
+ *
+ * Consolidated file containing:
+ *   - influencer/retailer verification
+ *   - admin creation
+ *   - dispute resolution (adminResolveDispute)
  */
 
 const bcrypt = require('bcrypt');
-
-// Replace old references to "../../Influencers/models/influencer"
-// and "../../Users/models/user" with a single import from your shared models index.
-// Example: const { User, Retailer, Influencer } = require('../../../src/models');
-const { User, Retailer, Influencer } = require('../../../src/models');
+const { User, Retailer, Influencer, Dispute } = require('../../../src/models');
 
 /**
  * PATCH /api/admin/verify-retailer/:retailerId
  * Sets Retailer.verification_status = 'verified'
- * Also sets the associated user's role = 'retailer'
+ * Also sets user.role = 'retailer'
  */
-const verifyRetailer = async (req, res) => {
+async function verifyRetailer(req, res) {
   try {
     const { retailerId } = req.params;
-    // 1) Update retailer verification status
     const [updatedCount] = await Retailer.update(
       { verification_status: 'verified' },
       { where: { id: retailerId } }
@@ -26,13 +26,13 @@ const verifyRetailer = async (req, res) => {
       return res.status(404).json({ message: 'Retailer not found' });
     }
 
-    // 2) Retrieve the retailer row to get user_id
+    // Retrieve the retailer row
     const retailer = await Retailer.findByPk(retailerId);
     if (!retailer) {
       return res.status(404).json({ message: 'Retailer not found after update' });
     }
 
-    // 3) Update the user role to 'retailer'
+    // Update the user role to 'retailer'
     await User.update({ role: 'retailer' }, { where: { id: retailer.user_id } });
 
     res.status(200).json({ message: 'Retailer verified successfully' });
@@ -40,14 +40,14 @@ const verifyRetailer = async (req, res) => {
     console.error('Error verifying retailer:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
-};
+}
 
 /**
  * PATCH /api/admin/deny-retailer/:retailerId
  * Sets Retailer.verification_status = 'denied'
- * Also reverts the associated user's role to 'regular_user' (if desired)
+ * Optionally sets user.role back to 'regular_user'
  */
-const denyRetailer = async (req, res) => {
+async function denyRetailer(req, res) {
   try {
     const { retailerId } = req.params;
     const [updatedCount] = await Retailer.update(
@@ -58,10 +58,10 @@ const denyRetailer = async (req, res) => {
       return res.status(404).json({ message: 'Retailer not found' });
     }
 
-    // Retrieve the retailer row to find user_id
+    // Retrieve row to get user_id
     const retailer = await Retailer.findByPk(retailerId);
     if (retailer) {
-      // Optionally revert user to 'regular_user' or another role
+      // Optionally revert user
       await User.update({ role: 'regular_user' }, { where: { id: retailer.user_id } });
     }
 
@@ -70,14 +70,13 @@ const denyRetailer = async (req, res) => {
     console.error('Error denying retailer:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
-};
+}
 
 /**
  * PATCH /api/admin/verify-influencer/:userId
- * Sets influencer_status = 'verified' in the Influencer table
- * Also sets user.role = 'influencer'
+ * Sets influencer_status = 'verified', user.role = 'influencer'
  */
-const verifyInfluencer = async (req, res) => {
+async function verifyInfluencer(req, res) {
   try {
     const { userId } = req.params;
     const [updatedCount] = await Influencer.update(
@@ -88,7 +87,6 @@ const verifyInfluencer = async (req, res) => {
       return res.status(404).json({ message: 'Influencer record not found' });
     }
 
-    // Also set user role to 'influencer'
     await User.update({ role: 'influencer' }, { where: { id: userId } });
 
     res.status(200).json({ message: 'Influencer verified successfully' });
@@ -96,14 +94,14 @@ const verifyInfluencer = async (req, res) => {
     console.error('Error verifying influencer:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
-};
+}
 
 /**
  * PATCH /api/admin/deny-influencer/:userId
- * Sets influencer_status = 'denied'
- * Optionally sets user.role back to 'regular_user'
+ * Sets influencer_status = 'denied',
+ * reverts user.role to 'regular_user'
  */
-const denyInfluencer = async (req, res) => {
+async function denyInfluencer(req, res) {
   try {
     const { userId } = req.params;
     const [updatedCount] = await Influencer.update(
@@ -114,7 +112,6 @@ const denyInfluencer = async (req, res) => {
       return res.status(404).json({ message: 'Influencer record not found' });
     }
 
-    // Optionally set user role back to 'regular_user'
     await User.update({ role: 'regular_user' }, { where: { id: userId } });
 
     res.status(200).json({ message: 'Influencer request denied' });
@@ -122,14 +119,13 @@ const denyInfluencer = async (req, res) => {
     console.error('Error denying influencer:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
-};
+}
 
 /**
  * POST /api/admin/create
- * Create a new admin user. 
- * Only existing admin can do this.
+ * Create a new admin user
  */
-const createAdminUser = async (req, res) => {
+async function createAdminUser(req, res) {
   try {
     const { name, email, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -138,11 +134,11 @@ const createAdminUser = async (req, res) => {
       name,
       email,
       password_hash: hashedPassword,
-      role: 'admin',
+      role: 'admin'
     });
 
-    res.status(201).json({ 
-      message: 'Admin user created', 
+    res.status(201).json({
+      message: 'Admin user created',
       user: {
         id: adminUser.id,
         name: adminUser.name,
@@ -154,12 +150,52 @@ const createAdminUser = async (req, res) => {
     console.error('Error creating admin user:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
-};
+}
 
+/**
+ * PATCH /api/admin/disputes/:disputeId/resolution
+ * Admin resolves a dispute.
+ */
+async function adminResolveDispute(req, res) {
+  try {
+    const { disputeId } = req.params;
+    const { resolutionOutcome, notes } = req.body;
+
+    // If you have a "Dispute" model with "id, user_id, status, reason, etc."
+    const dispute = await Dispute.findByPk(disputeId);
+    if (!dispute) {
+      return res.status(404).json({ message: 'Dispute not found' });
+    }
+
+    // Possibly set dispute.status to the resolution outcome or store additional fields
+    dispute.status = resolutionOutcome || 'resolved';
+    // dispute.resolution_notes = notes; // if you have column "resolution_notes"
+
+    await dispute.save();
+
+    res.status(200).json({
+      message: 'Dispute resolved by admin',
+      dispute: {
+        id: dispute.id,
+        resolutionOutcome: dispute.status,
+        notes: notes || null
+      }
+    });
+  } catch (error) {
+    console.error('Error resolving dispute via admin:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+/**
+ * Finally, export all functions
+ */
 module.exports = {
+  verifyRetailer,
+  denyRetailer,
   verifyInfluencer,
   denyInfluencer,
   createAdminUser,
-  verifyRetailer,
-  denyRetailer,
+  // NEW: add this to fix "adminResolveDispute is not defined"
+  adminResolveDispute
 };

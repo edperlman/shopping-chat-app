@@ -1,7 +1,7 @@
 /**
  * modules/Affiliate/routes/affiliateRoutes.js
  *
- * Defines routes for affiliate link generation, maybe commission endpoints, etc.
+ * Updated to reflect that we handle discount-based or campaign-based affiliate links.
  */
 const express = require('express');
 const router = express.Router();
@@ -22,15 +22,13 @@ const affiliateLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// Use the limiter
 router.use(affiliateLimiter);
 
 /**
  * POST /affiliate-links
- * Create a new affiliate link
+ * Create a new affiliate link.
+ * Body can contain either { discountId } or { campaignId } plus optional notes.
  */
 router.post('/', authenticate, createAffiliateLink);
-
-// Optionally define other endpoints if needed
 
 module.exports = router;

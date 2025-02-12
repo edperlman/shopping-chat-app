@@ -1,7 +1,7 @@
 /**
  * modules/Payment/routes/paymentRoutes.js
- * 
- * Payment aggregator logic: monthly invoice, auto-charge, commission pay-outs, etc.
+ *
+ * Payment aggregator logic: monthly invoices, auto-charge, commission pay-outs, etc.
  */
 const express = require('express');
 const router = express.Router();
@@ -13,7 +13,9 @@ const {
   createInvoice,
   getInvoices,
   payInvoice,
-  getCommissionStatus
+  getCommissionStatus,
+  createCommission,        // NEW
+  payCommission            // NEW
 } = require('../controllers/paymentController');
 
 // Rate limiter
@@ -30,9 +32,19 @@ router.use(paymentLimiter);
 /**
  * Payment aggregator endpoints
  */
-router.post('/invoices', authenticate, createInvoice);          // Retailer creates monthly invoice?
-router.get('/invoices', authenticate, getInvoices);             // Admin or retailer can view 
-router.patch('/invoices/:invoiceId/pay', authenticate, payInvoice); // Pay aggregator invoice
-router.get('/commissions', authenticate, getCommissionStatus);  // Check user’s or influencer’s commission
+
+// (Existing) Invoices
+router.post('/invoices', authenticate, createInvoice);
+router.get('/invoices', authenticate, getInvoices);
+router.patch('/invoices/:invoiceId/pay', authenticate, payInvoice);
+
+// (Existing) Check user’s or influencer’s total commission
+router.get('/commissions', authenticate, getCommissionStatus);
+
+// (NEW) Create a commission record manually (Test Case A)
+router.post('/commissions', authenticate, createCommission);
+
+// (NEW) Pay a specific commission by ID (Test Case C)
+router.patch('/commissions/:commissionId/pay', authenticate, payCommission);
 
 module.exports = router;

@@ -21,24 +21,36 @@ app.get('/', (req, res) => {
  * 2) Integrate your aggregator modules’ routes *
  ************************************************/
 const userRoutes = require('./modules/Users/routes/userRoutes');
-const retailerRoutes = require('./modules/Retailer/routes/retailerRoutes'); // <== Retailer
+const retailerRoutes = require('./modules/Retailer/routes/retailerRoutes');
 const discountRoutes = require('./modules/Discount/routes/discountRoutes');
 const paymentRoutes = require('./modules/Payment/routes/paymentRoutes');
 const adminRoutes = require('./modules/Admin/routes/adminRoutes');
+
+// Updated: MOUNT influencer routes at /influencer, so /influencer/invites is recognized
 const influencerRoutes = require('./modules/Influencer/routes/influencerRoutes');
+
 const disputeRoutes = require('./modules/Dispute/routes/disputeRoutes');
 const chatRoutes = require('./modules/Chat/routes/chatRoutes');
 const affiliateRoutes = require('./modules/Affiliate/routes/affiliateRoutes');
 
 // Mount them on appropriate paths:
 app.use('/users', userRoutes);
-// CHANGE THIS to /retailers (plural):
-app.use('/retailers', retailerRoutes); 
+// using /retailers (plural)
+app.use('/retailers', retailerRoutes);
 
 app.use('/discount', discountRoutes);
 app.use('/payments', paymentRoutes);
 app.use('/admin', adminRoutes);
-app.use('/influencer-requests', influencerRoutes);
+
+/**
+ * Updated approach:
+ * - Instead of app.use('/influencer-requests', influencerRoutes);
+ *   we mount influencerRoutes at /influencer
+ * - If you still need /influencer-requests for old routes, you can duplicate the mount, but
+ *   be consistent with your project approach.
+ */
+app.use('/influencer', influencerRoutes);
+
 app.use('/disputes', disputeRoutes);
 app.use('/chat', chatRoutes);
 app.use('/affiliate-links', affiliateRoutes);
@@ -66,7 +78,7 @@ io.on('connection', (socket) => {
     // Broadcast to everyone in that room
     io.to(roomId).emit('receiveMessage', {
       sender: socket.id,
-      content: content
+      content
     });
   });
 
