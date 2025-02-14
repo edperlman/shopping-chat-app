@@ -89,6 +89,34 @@ try {
   console.warn('No dispute.js or error loading it:', err);
 }
 
+/**
+ * NEW: Load Chat Models (ChatRoom, ChatRoomParticipant, Message)
+ */
+let ChatRoom = null;
+let ChatRoomParticipant = null;
+let Message = null;
+
+try {
+  const ChatRoomModel = require('../../modules/Chat/models/chatRoom');
+  ChatRoom = ChatRoomModel(sequelize, DataTypes);
+} catch (err) {
+  console.warn('No chatRoom.js or error loading it:', err);
+}
+
+try {
+  const ChatRoomParticipantModel = require('../../modules/Chat/models/chatRoomParticipant');
+  ChatRoomParticipant = ChatRoomParticipantModel(sequelize, DataTypes);
+} catch (err) {
+  console.warn('No chatRoomParticipant.js or error loading it:', err);
+}
+
+try {
+  const MessageModel = require('../../modules/Chat/models/message');
+  Message = MessageModel(sequelize, DataTypes);
+} catch (err) {
+  console.warn('No message.js or error loading it:', err);
+}
+
 // 3) Setup associations
 
 // Retailer associations
@@ -121,15 +149,25 @@ if (Commission && Commission.associate) {
   Commission.associate({ User });
 }
 
-/**
- * ADDED: If Dispute is loaded, set up its associations
- * e.g. linking Dispute to Commission, etc.
- */
+// Dispute associations
 if (Dispute && Dispute.associate) {
   Dispute.associate({
     Commission,
     // If you want a user association, pass in { User } here if needed
   });
+}
+
+/**
+ * Chat associations
+ */
+if (ChatRoom && ChatRoom.associate) {
+  ChatRoom.associate({ ChatRoomParticipant, Message });
+}
+if (ChatRoomParticipant && ChatRoomParticipant.associate) {
+  ChatRoomParticipant.associate({ ChatRoom });
+}
+if (Message && Message.associate) {
+  Message.associate({ ChatRoom });
 }
 
 // 4) Export them so other modules can import
@@ -143,8 +181,9 @@ module.exports = {
   Campaign,
   AffiliateLink,
   Commission,
-  /**
-   * ADDED: Export Dispute
-   */
-  Dispute
+  Dispute,
+  // Chat exports
+  ChatRoom,
+  ChatRoomParticipant,
+  Message
 };

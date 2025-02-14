@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.io Chat Test</title>
+  <!-- Loads the client script from /socket.io/socket.io.js -->
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Chat Test Page</h1>
+
+  <div>
+    <label>Room ID:</label>
+    <input type="text" id="roomId" value="101"/>
+    <button onclick="joinRoom()">Join Room</button>
+  </div>
+
+  <div>
+    <label>Message:</label>
+    <!-- We'll track typing events on keydown/up -->
+    <input type="text" id="msgInput" onkeydown="emitTyping(true)" onkeyup="emitTyping(false)"/>
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <div id="chatLog" style="border:1px solid #ccc; width:400px; height:200px; overflow:auto;">
+    <p><em>Messages will appear here...</em></p>
+  </div>
+
+  <script>
+    // 1) Connect to the Socket.io server
+    // Adjust the URL if needed, or keep localhost:3000 if your server is local
+    const socket = io('http://localhost:3000', {
+      auth: { 
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwicm9sZSI6InJlZ3VsYXJfdXNlciIsImlhdCI6MTczOTU3MTY2NiwiZXhwIjoxNzM5NTc1MjY2fQ.BOYqjOLyDflNuArTgZwT3C_U9F5poPlWk9b3l5mYjsE'
+      }
+    });
+
+    // 2) Basic connection events
+    socket.on('connect', () => {
+      console.log('Connected to server. Socket ID:', socket.id);
+      appendLog(`Connected! Socket ID = ${socket.id}`);
+    });
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected');
+      appendLog('Socket disconnected');
+    });
+
+    // 3) Listen for broadcast chat messages
+    socket.on('receiveMessage', (data) => {
+      console.log('receiveMessage event:', data);
+      // data.sender_id is from server code; unify naming in your logs
+      appendLog(`Message from User ${data.sender_id}: ${data.content}`);
+    });
+
+    // 4) Listen for ephemeral typing events
+    // This will show "User X is typing: true/false" in the chatLog
+    socket.on('userTyping', (data) => {
+      console.log('userTyping event:', data);
+      appendLog(`User ${data.userId} is typing: ${data.isTyping}`);
+    });
+
+    // Utility function to append text to chatLog div
+    function appendLog(text) {
+      const logDiv = document.getElementById('chatLog');
+      const newLine = document.createElement('p');
+      newLine.innerText = text;
+      logDiv.appendChild(newLine);
+      // Optional: auto-scroll
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // 5) Join a room when user clicks "Join Room"
+    function joinRoom() {
+      const roomIdVal = document.getElementById('roomId').value;
+      socket.emit('joinRoom', roomIdVal);
+      appendLog(`Requested join for room ${roomIdVal}`);
+    }
+
+    // 6) Emit typing event (ephemeral)
+    // Called on keydown and keyup
+    function emitTyping(isTyping) {
+      const roomIdVal = document.getElementById('roomId').value;
+      socket.emit('typing', { 
+        roomId: roomIdVal, 
+        isTyping 
+      });
+    }
+
+    // 7) Send a message
+    function sendMessage() {
+      const roomIdVal = document.getElementById('roomId').value;
+      const contentVal = document.getElementById('msgInput').value;
+      if (!contentVal) return;
+
+      socket.emit('sendMessage', {
+        roomId: roomIdVal,
+        content: contentVal
+      });
+      appendLog(`Sent message: ${contentVal}`);
+      document.getElementById('msgInput').value = '';
+    }
+  </script>
+</body>
+</html>

@@ -1,36 +1,27 @@
-/**
- * modules/Chat/routes/chatRoutes.js
- *
- * Basic example if you want REST for chat rooms or archived messages.
- */
 const express = require('express');
 const router = express.Router();
-const rateLimit = require('express-rate-limit');
 const authenticate = require('../../Users/middleware/authenticate');
 
-// Chat controllers
 const {
-  listRooms,
   createRoom,
-  getRoomMessages
+  fetchMessages,
+  sendMessage,
+  addParticipant
 } = require('../controllers/chatController');
 
-// Rate limit
-const chatLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many chat requests, try again later.',
-  standardHeaders: true,
-  legacyHeaders: false
-});
+// Protect all routes with authenticate for JWT auth
+router.use(authenticate);
 
-router.use(chatLimiter);
+// Create a chat room (1-on-1 or group)
+router.post('/rooms', createRoom);
 
-/**
- * Example chat endpoints:
- */
-router.get('/rooms', authenticate, listRooms);
-router.post('/rooms', authenticate, createRoom);
-router.get('/rooms/:roomId/messages', authenticate, getRoomMessages);
+// Get messages from a chat room
+router.get('/rooms/:roomId/messages', fetchMessages);
+
+// Send a message to a chat room
+router.post('/rooms/:roomId/messages', sendMessage);
+
+// (Optional) Add participant to existing room
+router.post('/rooms/:roomId/participants', addParticipant);
 
 module.exports = router;
