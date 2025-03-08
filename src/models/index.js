@@ -15,7 +15,7 @@ const sequelize = new Sequelize(config.database, config.username, config.passwor
  * 2) Define or import your models
  */
 
-// Example "User" model
+// Example "User" model inline
 const User = sequelize.define('User', {
   name: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false },
@@ -90,7 +90,7 @@ try {
 }
 
 /**
- * NEW: Load Chat Models (ChatRoom, ChatRoomParticipant, Message)
+ * NEW: Load Chat Models
  */
 let ChatRoom = null;
 let ChatRoomParticipant = null;
@@ -102,14 +102,12 @@ try {
 } catch (err) {
   console.warn('No chatRoom.js or error loading it:', err);
 }
-
 try {
   const ChatRoomParticipantModel = require('../../modules/Chat/models/chatRoomParticipant');
   ChatRoomParticipant = ChatRoomParticipantModel(sequelize, DataTypes);
 } catch (err) {
   console.warn('No chatRoomParticipant.js or error loading it:', err);
 }
-
 try {
   const MessageModel = require('../../modules/Chat/models/message');
   Message = MessageModel(sequelize, DataTypes);
@@ -117,7 +115,31 @@ try {
   console.warn('No message.js or error loading it:', err);
 }
 
-// 3) Setup associations
+/**
+ * NEW: Load Aggregator Order Model
+ */
+let Order = null;
+try {
+  const OrderModel = require('../../modules/Aggregator/models/order');
+  Order = OrderModel(sequelize, DataTypes);
+} catch (err) {
+  console.warn('No aggregator order model or error loading it:', err);
+}
+
+/**
+ * NEW: Load Invoice model for Payment
+ */
+let Invoice = null;
+try {
+  const InvoiceModel = require('../../modules/Payment/models/invoice');
+  Invoice = InvoiceModel(sequelize, DataTypes);
+} catch (err) {
+  console.warn('No invoice.js or error loading it:', err);
+}
+
+/**
+ * 3) Setup associations
+ */
 
 // Retailer associations
 if (Retailer.associate) {
@@ -151,10 +173,7 @@ if (Commission && Commission.associate) {
 
 // Dispute associations
 if (Dispute && Dispute.associate) {
-  Dispute.associate({
-    Commission,
-    // If you want a user association, pass in { User } here if needed
-  });
+  Dispute.associate({ Commission });
 }
 
 /**
@@ -170,7 +189,21 @@ if (Message && Message.associate) {
   Message.associate({ ChatRoom });
 }
 
-// 4) Export them so other modules can import
+// Aggregator Order associations
+if (Order && Order.associate) {
+  // e.g. Order.associate({ Retailer });
+}
+
+/**
+ * If Invoice needs association, do it here, e.g. linking to Retailer
+ */
+if (Invoice && Invoice.associate) {
+  Invoice.associate({ Retailer });
+}
+
+/**
+ * 4) Export them so other modules can import
+ */
 module.exports = {
   sequelize,
   Sequelize,
@@ -182,8 +215,9 @@ module.exports = {
   AffiliateLink,
   Commission,
   Dispute,
-  // Chat exports
   ChatRoom,
   ChatRoomParticipant,
-  Message
+  Message,
+  Order,
+  Invoice // <---- ADDED
 };

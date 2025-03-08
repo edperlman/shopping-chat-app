@@ -1,16 +1,11 @@
 /**
  * modules/Retailer/routes/retailerRoutes.js
- 
  */
-
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
-// Middleware for JWT-based authentication
 const authenticate = require('../../Users/middleware/authenticate');
-
-// Import relevant controller functions
 const {
   createRetailerProfile,
   getRetailerProfile,
@@ -19,7 +14,8 @@ const {
   approveCampaign,
   denyCampaign,
   searchRetailers,
-  updateCampaign // <-- ADDED import for the new function
+  updateCampaign,
+  getSnippet // <-- add this import
 } = require('../controllers/retailerController');
 
 const {
@@ -28,7 +24,6 @@ const {
   completeInfluencerCampaign
 } = require('../controllers/campaignController');
 
-// Apply rate-limiting to all retailer endpoints
 const retailerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -44,28 +39,21 @@ router.post('/create-profile', authenticate, createRetailerProfile);
 router.get('/my-profile', authenticate, getRetailerProfile);
 router.patch('/update-profile', authenticate, updateRetailerProfile);
 
-// Retailer search => GET /retailers?search=shoes
+// GET /retailers?search=shoes
 router.get('/', authenticate, searchRetailers);
 
-/**
- * Basic campaigns
- * POST /retailers/campaigns => createCampaign
- */
+// Basic campaigns
 router.post('/campaigns', authenticate, createCampaign);
-
-// Approve or deny existing campaign
 router.patch('/campaigns/:campaignId/approve', authenticate, approveCampaign);
 router.patch('/campaigns/:campaignId/deny', authenticate, denyCampaign);
-
-/**
- * ADDED: Generic update route
- * PATCH /retailers/campaigns/:campaignId => updateCampaign
- */
 router.patch('/campaigns/:campaignId', authenticate, updateCampaign);
 
 // Influencer group campaign endpoints
 router.post('/campaigns/influencer-group', authenticate, createInfluencerGroupCampaign);
 router.patch('/campaigns/:campaignId/approve-influencer', authenticate, approveInfluencerCampaign);
 router.patch('/campaigns/:campaignId/complete', authenticate, completeInfluencerCampaign);
+
+// ADD: snippet route
+router.get('/snippet', authenticate, getSnippet);
 
 module.exports = router;

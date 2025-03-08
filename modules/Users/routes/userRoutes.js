@@ -1,9 +1,6 @@
 /**
  * modules/Users/routes/userRoutes.js
- * 
- * Defines all user-related routes. We apply rate-limiting globally.
  */
-
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
@@ -14,13 +11,14 @@ const {
   loginUser,
   getUserProfile,
   updateUserProfile,
-  getUserById
+  getUserById,
+  signupUser
 } = require('../controllers/userController');
 
 // Middleware
 const authenticate = require('../middleware/authenticate');
 
-// Rate limiter: e.g. max 100 requests per 15 min
+// Rate limiter
 const userRoutesLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -29,14 +27,15 @@ const userRoutesLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// 1) Apply rate limiter
+// Apply rate limiter
 router.use(userRoutesLimiter);
 
-// 2) Public routes
+// Public routes
 router.post('/register', registerUser);
-router.post('/login', loginUser);
+router.post('/signup', signupUser);   
+router.post('/login', loginUser);   // <--- Login route
 
-// 3) Protected routes
+// Protected routes
 router.get('/profile', authenticate, getUserProfile);
 router.patch('/profile', authenticate, updateUserProfile);
 router.get('/:id', authenticate, getUserById);

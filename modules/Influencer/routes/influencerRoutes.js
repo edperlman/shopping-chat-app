@@ -1,15 +1,17 @@
 /**
  * modules/Influencer/routes/influencerRoutes.js
  *
- * Updated to handle BOTH influencer verification requests
- * AND invites (POST /influencer/invites).
+ * Manages influencer requests, invites, etc.
  */
 const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
-// Import controllers
-const { requestInfluencerVerification, sendInvites } = require('../controllers/influencerController');
+// Controllers
+const {
+  requestInfluencerVerification,
+  sendInvites
+} = require('../controllers/influencerController');
 
 // If user must be logged in:
 const authenticate = require('../../Users/middleware/authenticate');
@@ -27,16 +29,14 @@ const influencerLimiter = rateLimit({
 router.use(influencerLimiter);
 
 /**
- * POST /influencer
- * - If we mount at /influencer,
- *   then this is /influencer/ (like old /influencer-requests).
- *   For clarity, we'll keep it at '/', which is "request influencer verification"
+ * POST /influencer-requests => handled by server mount
+ * So this route is '/', meaning /influencer-requests => router.post('/')
  */
 router.post('/', authenticate, requestInfluencerVerification);
 
 /**
- * POST /influencer/invites
- * This route allows the influencer to invite friends/followers.
+ * POST /influencer-requests/invites => (optional)
+ * or if you prefer /influencer/invites, you'd mount differently in server.js
  */
 router.post('/invites', authenticate, sendInvites);
 

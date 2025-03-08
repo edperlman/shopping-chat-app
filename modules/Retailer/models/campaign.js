@@ -1,8 +1,8 @@
 /**
  * modules/Retailer/models/campaign.js
  *
- * Classic define approach for "Campaigns" table, now including discount_id
- * referencing "Discounts"(id). 
+ * Renamed influencer_user_id -> user_id, so the aggregator can store any user’s ID
+ * (regular or influencer). We allowNull: false if you want an always-required user ID.
  */
 module.exports = (sequelize, DataTypes) => {
   const Campaign = sequelize.define('Campaign', {
@@ -11,9 +11,10 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true
     },
-    influencer_user_id: {
+    // RENAMED:
+    user_id: {
       type: DataTypes.INTEGER,
-      allowNull: false
+      allowNull: false // or true, if you prefer to make it optional
     },
     retailer_id: {
       type: DataTypes.INTEGER,
@@ -36,12 +37,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DECIMAL(5, 2),
       allowNull: true
     },
-    // NEW: Let Sequelize know about the discount_id column
+    // discount_id references "Discounts" if you use a separate table
     discount_id: {
       type: DataTypes.INTEGER,
       allowNull: true
     },
-
     created_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW
@@ -52,23 +52,22 @@ module.exports = (sequelize, DataTypes) => {
     }
   }, {
     tableName: 'Campaigns',
-    timestamps: false, // or true if you want Sequelize to auto-manage createdAt/updatedAt
+    timestamps: false,
     underscored: true
   });
 
-  // Associations
   Campaign.associate = (models) => {
     // Link to Retailer
     Campaign.belongsTo(models.Retailer, {
       foreignKey: 'retailer_id',
       as: 'retailer'
     });
-    // Link to User for influencer
+    // Link to User for the campaign creator (regular or influencer)
     Campaign.belongsTo(models.User, {
-      foreignKey: 'influencer_user_id',
-      as: 'influencerUser'
+      foreignKey: 'user_id',
+      as: 'creatorUser' // e.g. 'creatorUser'
     });
-    // NEW: Link to Discount, referencing discount_id
+    // Link to Discount if separate
     Campaign.belongsTo(models.Discount, {
       foreignKey: 'discount_id',
       as: 'discount'

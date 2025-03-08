@@ -27,7 +27,7 @@ router.use(affiliateLimiter);
 /**
  * POST /affiliate-links
  * Create a new affiliate link.
- * Body can contain either { discountId } or { campaignId } plus optional notes.
+ * Body can contain campaignId or discountId plus optional notes, commission_rate, etc.
  */
 router.post('/', authenticate, createAffiliateLink);
 

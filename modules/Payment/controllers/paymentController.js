@@ -3,78 +3,86 @@
  *
  * Payment aggregator logic: monthly invoices, auto-charges, commission pay-outs, etc.
  */
-const { Commission } = require('../../../src/models'); 
-// If you also have Invoice, Payment, etc., import them as needed.
 
-/**
- * POST /payments/invoices
- * Retailer creates monthly invoice
- */
+const { Commission, Invoice } = require('../../../src/models');
+const paymentService = require('../services/paymentService');
+
+//-----------------------------------------
+// (1) Create Invoice (manual / stub)
+//-----------------------------------------
 async function createInvoice(req, res) {
   try {
-    // Example usage if you had an Invoice model:
-    // const newInvoice = await Invoice.create({ ...req.body });
-    // For now, just respond with a success message:
-    return res.status(201).json({ message: 'Invoice created successfully' });
+    // Possibly implement logic to create an invoice from request
+    return res.status(201).json({ message: 'Invoice created successfully (stub)' });
   } catch (error) {
     console.error('Error creating invoice:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
-/**
- * GET /payments/invoices
- * Admin or retailer can view
- */
+//----------------------
+// (2) Get All Invoices
+//----------------------
 async function getInvoices(req, res) {
   try {
-    // If you had an Invoice model, e.g.:
-    // const invoices = await Invoice.findAll();
-    return res.status(200).json({ message: 'Fetched all invoices', data: [] });
+    // For now, a stub returning empty. Or you can implement Invoice.findAll()
+    return res.status(200).json({ message: 'Fetched all invoices (stub)', data: [] });
   } catch (error) {
     console.error('Error fetching invoices:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
-/**
- * PATCH /payments/invoices/:invoiceId/pay
- * Pay aggregator invoice
- */
+//-----------------------------------------
+// (3) Pay an Invoice by ID
+//-----------------------------------------
 async function payInvoice(req, res) {
   try {
+    // 1) Extract invoiceId from URL, plus payment details from body
     const { invoiceId } = req.params;
-    // If you had an Invoice model, you’d find & update it:
-    // const invoice = await Invoice.findByPk(invoiceId);
-    // if (!invoice) {
-    //   return res.status(404).json({ message: 'Invoice not found' });
-    // }
-    // invoice.status = 'paid';
-    // await invoice.save();
+    const { paymentMethod, transactionId } = req.body;
 
-    return res.status(200).json({ message: `Invoice ${invoiceId} paid successfully` });
+    // 2) Call the service function to do actual logic
+    const result = await paymentService.markInvoicePaid(invoiceId, { paymentMethod, transactionId });
+
+    // 3) Return the full JSON object that the service returns
+    return res.status(200).json(result);
   } catch (error) {
     console.error('Error paying invoice:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
-/**
- * NEW: POST /payments/commissions
- * Create a new commission record manually (Test Case A).
- */
+//---------------------------------------------------------
+// (4) Generate Invoices for a date range
+//---------------------------------------------------------
+async function generateInvoicesForRange(req, res) {
+  try {
+    const { startDate, endDate } = req.body;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: 'startDate and endDate are required' });
+    }
+    const result = await paymentService.generateInvoices(startDate, endDate);
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Error generating invoices for range:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+//-----------------------------------------------
+// (5) Create Commission Manually
+//-----------------------------------------------
 async function createCommission(req, res) {
   try {
-    // e.g. { "userId": 23, "amount": 50.0 }
     const { userId, amount } = req.body;
     if (!userId || !amount) {
       return res.status(400).json({ message: 'Missing userId or amount' });
     }
 
-    // Insert into Commissions table
     const newCommission = await Commission.create({
       user_id: userId,
-      amount: amount,
+      amount,
       status: 'unpaid'
     });
 
@@ -88,22 +96,19 @@ async function createCommission(req, res) {
   }
 }
 
-/**
- * GET /payments/commissions
- * Check user’s or influencer’s commission (Test Case B).
- */
+//-----------------------------------------------------------
+// (6) Get user’s or influencer’s commission
+//-----------------------------------------------------------
 async function getCommissionStatus(req, res) {
   try {
-    // Identify the user from JWT
+    // Identify user from JWT (req.user.id)
     const userId = req.user.id;
 
-    // Sum up total amounts by status
     const [allCommissions, unpaidCommissions] = await Promise.all([
       Commission.sum('amount', { where: { user_id: userId } }),
       Commission.sum('amount', { where: { user_id: userId, status: 'unpaid' } })
     ]);
 
-    // Default to 0 if sum returns null
     const totalEarned = allCommissions || 0;
     const unpaidAmount = unpaidCommissions || 0;
 
@@ -121,23 +126,19 @@ async function getCommissionStatus(req, res) {
   }
 }
 
-/**
- * NEW: PATCH /payments/commissions/:commissionId/pay
- * Mark a specific commission as paid (Test Case C).
- */
+//-----------------------------------------------
+// (7) Pay a Specific Commission
+//-----------------------------------------------
 async function payCommission(req, res) {
   try {
     const { commissionId } = req.params;
-    // e.g. { "paymentMethod": "bank_transfer", "transactionId": "TXN12345" }
     const { paymentMethod, transactionId } = req.body;
 
-    // Find the commission
     const commission = await Commission.findByPk(commissionId);
     if (!commission) {
       return res.status(404).json({ message: 'Commission not found' });
     }
 
-    // Mark as paid
     commission.status = 'paid';
     await commission.save();
 
@@ -158,7 +159,8 @@ module.exports = {
   createInvoice,
   getInvoices,
   payInvoice,
+  generateInvoicesForRange,
+  createCommission,
   getCommissionStatus,
-  createCommission,  // ADDED
-  payCommission      // ADDED
+  payCommission
 };
