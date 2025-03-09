@@ -10,6 +10,7 @@ const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 
+// Import aggregator models if needed for chat
 const { ChatRoom, ChatRoomParticipant, Message, User } = require('./src/models');
 
 const app = express();
@@ -30,7 +31,7 @@ const discountRoutes = require('./modules/Discount/routes/discountRoutes');
 const paymentRoutes = require('./modules/Payment/routes/paymentRoutes');
 const adminRoutes = require('./modules/Admin/routes/adminRoutes');
 
-// *** The relevant influencer routes ***
+// *** Updated: mount influencer routes at /influencer ***
 const influencerRoutes = require('./modules/Influencer/routes/influencerRoutes');
 
 const disputeRoutes = require('./modules/Dispute/routes/disputeRoutes');
@@ -46,10 +47,13 @@ app.use('/payments', paymentRoutes);
 app.use('/admin', adminRoutes);
 
 /**
- * The important line: mounting influencerRoutes at /influencer-requests
- * so POST /influencer-requests calls influencerRoutes.js router.post('/')
+ * IMPORTANT:
+ * Instead of app.use('/influencer-requests', influencerRoutes),
+ * we now mount them at /influencer. So final endpoints become:
+ *  - POST /influencer => requestInfluencerVerification
+ *  - POST /influencer/invites => sendInvites
  */
-app.use('/influencer-requests', influencerRoutes);
+app.use('/influencer', influencerRoutes);
 
 app.use('/disputes', disputeRoutes);
 app.use('/chat', chatRoutes);
@@ -68,7 +72,9 @@ const io = new Server(server, {
   }
 });
 
-// Socket.io authentication
+/**
+ * Socket.io authentication
+ */
 io.use((socket, next) => {
   const token = socket.handshake.auth && socket.handshake.auth.token;
   if (!token) {
@@ -86,7 +92,7 @@ io.use((socket, next) => {
   });
 });
 
-// MIDDLEWARE: attach io to req
+// Attach io instance to req for real-time broadcasting
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -95,6 +101,7 @@ app.use((req, res, next) => {
 // 4) Socket.io Real-Time Chat
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id} (User ID: ${socket.userId})`);
+
   // Example chat events...
   socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);

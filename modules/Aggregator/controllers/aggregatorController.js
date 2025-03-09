@@ -10,16 +10,19 @@ exports.trackPurchase = async (req, res) => {
       retailerId,
       userId,
       affiliateId,
+      affiliateCode,
       discountId,
       finalPrice,
       currency,
       externalOrderId
     } = req.body;
 
+    // Main logic in aggregatorService
     const newOrder = await aggregatorService.processPurchase({
       retailerId,
       userId,
       affiliateId,
+      affiliateCode,
       discountId,
       finalPrice,
       currency,
@@ -54,6 +57,9 @@ exports.trackPurchase = async (req, res) => {
   }
 };
 
+/**
+ * Serve aggregator snippet
+ */
 exports.serveSnippet = (req, res) => {
   const snippetPath = path.join(__dirname, '../snippet', 'snippet.js');
   res.sendFile(snippetPath);

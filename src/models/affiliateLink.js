@@ -23,6 +23,12 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: false
       },
+
+      usage_count: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0
+      },
+      
       notes: {
         type: DataTypes.TEXT,
         allowNull: true

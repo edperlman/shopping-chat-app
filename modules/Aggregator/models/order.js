@@ -1,10 +1,5 @@
-// modules/Aggregator/models/order.js
 const { DataTypes } = require('sequelize');
 
-/**
- * This file exports a function that expects a Sequelize instance.
- * Example usage in src/models/index.js: OrderModel(sequelize, DataTypes).
- */
 module.exports = (sequelize, DataTypes) => {
   const Order = sequelize.define('Order', {
     id: {
@@ -48,16 +43,15 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'Orders',
     underscored: true,
-    timestamps: true // includes created_at, updated_at
+    timestamps: true
   });
 
-  /**
-   * Optional associate function if you want to define
-   * relationships here or in src/models/index.js
-   */
   Order.associate = (models) => {
-    // For example, if you want an association to Retailer:
-    // Order.belongsTo(models.Retailer, { foreignKey: 'retailer_id' });
+    // Order belongs to a retailer
+    Order.belongsTo(models.Retailer, {
+      foreignKey: 'retailer_id',
+      as: 'retailer'
+    });
   };
 
   return Order;

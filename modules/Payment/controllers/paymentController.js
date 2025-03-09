@@ -1,10 +1,10 @@
 /**
  * modules/Payment/controllers/paymentController.js
  *
- * Payment aggregator logic: monthly invoices, auto-charges, commission pay-outs, etc.
+ * Payment aggregator logic: monthly invoices, auto-charges, commission payouts, etc.
  */
 
-const { Commission, Invoice } = require('../../../src/models');
+const { Commission, Invoice, Order, Retailer } = require('../../../src/models');
 const paymentService = require('../services/paymentService');
 
 //-----------------------------------------
@@ -12,7 +12,6 @@ const paymentService = require('../services/paymentService');
 //-----------------------------------------
 async function createInvoice(req, res) {
   try {
-    // Possibly implement logic to create an invoice from request
     return res.status(201).json({ message: 'Invoice created successfully (stub)' });
   } catch (error) {
     console.error('Error creating invoice:', error);
@@ -25,7 +24,6 @@ async function createInvoice(req, res) {
 //----------------------
 async function getInvoices(req, res) {
   try {
-    // For now, a stub returning empty. Or you can implement Invoice.findAll()
     return res.status(200).json({ message: 'Fetched all invoices (stub)', data: [] });
   } catch (error) {
     console.error('Error fetching invoices:', error);
@@ -38,14 +36,10 @@ async function getInvoices(req, res) {
 //-----------------------------------------
 async function payInvoice(req, res) {
   try {
-    // 1) Extract invoiceId from URL, plus payment details from body
     const { invoiceId } = req.params;
     const { paymentMethod, transactionId } = req.body;
 
-    // 2) Call the service function to do actual logic
     const result = await paymentService.markInvoicePaid(invoiceId, { paymentMethod, transactionId });
-
-    // 3) Return the full JSON object that the service returns
     return res.status(200).json(result);
   } catch (error) {
     console.error('Error paying invoice:', error);
@@ -54,7 +48,7 @@ async function payInvoice(req, res) {
 }
 
 //---------------------------------------------------------
-// (4) Generate Invoices for a date range
+// (4) Generate Invoices for a date range (monthly aggregator)
 //---------------------------------------------------------
 async function generateInvoicesForRange(req, res) {
   try {
@@ -71,7 +65,7 @@ async function generateInvoicesForRange(req, res) {
 }
 
 //-----------------------------------------------
-// (5) Create Commission Manually
+// (5) Create a Commission Manually (Test usage)
 //-----------------------------------------------
 async function createCommission(req, res) {
   try {
@@ -97,7 +91,7 @@ async function createCommission(req, res) {
 }
 
 //-----------------------------------------------------------
-// (6) Get user’s or influencer’s commission
+// (6) Get user’s or influencer’s commission (Test usage)
 //-----------------------------------------------------------
 async function getCommissionStatus(req, res) {
   try {
@@ -109,14 +103,14 @@ async function getCommissionStatus(req, res) {
       Commission.sum('amount', { where: { user_id: userId, status: 'unpaid' } })
     ]);
 
-    const totalEarned = allCommissions || 0;
-    const unpaidAmount = unpaidCommissions || 0;
+    const totalEarned = parseFloat(allCommissions || 0);
+    const unpaidAmount = parseFloat(unpaidCommissions || 0);
 
     return res.status(200).json({
       message: 'Commission status',
       data: {
-        totalEarned: parseFloat(totalEarned),
-        unpaidAmount: parseFloat(unpaidAmount),
+        totalEarned,
+        unpaidAmount,
         currency: 'USD'
       }
     });
@@ -126,25 +120,71 @@ async function getCommissionStatus(req, res) {
   }
 }
 
-//-----------------------------------------------
-// (7) Pay a Specific Commission
-//-----------------------------------------------
+/**
+ * PATCH /payments/commissions/:commissionId/pay
+ * 
+ * Only the retailer that owns the "order" (commission.order.retailer.user_id) or an admin
+ * can mark the commission as paid. Also, we do not allow double-paying a "paid" commission.
+ */
 async function payCommission(req, res) {
   try {
     const { commissionId } = req.params;
     const { paymentMethod, transactionId } = req.body;
 
-    const commission = await Commission.findByPk(commissionId);
+    // Eager-load the associated order and its retailer
+    const commission = await Commission.findOne({
+      where: { id: commissionId },
+      include: [
+        {
+          model: Order,
+          as: 'order',
+          include: [
+            {
+              model: Retailer,
+              as: 'retailer'
+            }
+          ]
+        }
+      ]
+    });
+
     if (!commission) {
       return res.status(404).json({ message: 'Commission not found' });
     }
 
+    // Must have an associated order
+    if (!commission.order) {
+      return res.status(400).json({ message: 'Commission has no associated order' });
+    }
+
+    // Must have a retailer row in that order
+    if (!commission.order.retailer) {
+      return res.status(400).json({ message: 'Order has no associated retailer record' });
+    }
+
+    // Check if commission is already paid
+    if (commission.status === 'paid') {
+      // or you can choose 400 or 409. We do 409 for "Conflict"
+      return res.status(409).json({ message: 'Commission is already paid' });
+    }
+
+    // If user isn't admin, check the retailer’s user_id
+    if (req.user.role !== 'admin') {
+      // Must match the retailer’s user_id
+      if (commission.order.retailer.user_id !== req.user.id) {
+        return res
+          .status(403)
+          .json({ message: 'Not authorized to pay this commission' });
+      }
+    }
+
+    // Mark as paid
     commission.status = 'paid';
     await commission.save();
 
     return res.status(200).json({
       message: 'Commission paid successfully',
-      commissionId: commissionId,
+      commissionId: commission.id.toString(),
       status: 'paid',
       paymentMethod,
       transactionId

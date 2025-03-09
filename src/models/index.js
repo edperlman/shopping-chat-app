@@ -15,7 +15,7 @@ const sequelize = new Sequelize(config.database, config.username, config.passwor
  * 2) Define or import your models
  */
 
-// Example "User" model inline
+// Users
 const User = sequelize.define('User', {
   name: { type: DataTypes.STRING, allowNull: false },
   email: { type: DataTypes.STRING, allowNull: false },
@@ -30,15 +30,15 @@ const User = sequelize.define('User', {
   timestamps: true
 });
 
-// Influencer model
+// Influencer
 const InfluencerModel = require('../../modules/Influencer/models/influencer');
 const Influencer = InfluencerModel(sequelize, DataTypes);
 
-// Retailer model
+// Retailer
 const RetailerModel = require('../../modules/Retailer/models/retailer');
 const Retailer = RetailerModel(sequelize, DataTypes);
 
-// Discount model
+// Discount
 let Discount = null;
 try {
   const DiscountModel = require('../../modules/Discount/models/discount');
@@ -47,7 +47,7 @@ try {
   console.warn('No discount.js or error loading it:', err);
 }
 
-// Campaign model
+// Campaign
 let Campaign = null;
 try {
   const CampaignModel = require('../../modules/Retailer/models/campaign');
@@ -89,35 +89,24 @@ try {
   console.warn('No dispute.js or error loading it:', err);
 }
 
-/**
- * NEW: Load Chat Models
- */
+// Chat
 let ChatRoom = null;
 let ChatRoomParticipant = null;
 let Message = null;
-
 try {
   const ChatRoomModel = require('../../modules/Chat/models/chatRoom');
   ChatRoom = ChatRoomModel(sequelize, DataTypes);
-} catch (err) {
-  console.warn('No chatRoom.js or error loading it:', err);
-}
+} catch (err) { /* ... */ }
 try {
   const ChatRoomParticipantModel = require('../../modules/Chat/models/chatRoomParticipant');
   ChatRoomParticipant = ChatRoomParticipantModel(sequelize, DataTypes);
-} catch (err) {
-  console.warn('No chatRoomParticipant.js or error loading it:', err);
-}
+} catch (err) { /* ... */ }
 try {
   const MessageModel = require('../../modules/Chat/models/message');
   Message = MessageModel(sequelize, DataTypes);
-} catch (err) {
-  console.warn('No message.js or error loading it:', err);
-}
+} catch (err) { /* ... */ }
 
-/**
- * NEW: Load Aggregator Order Model
- */
+// Aggregator order
 let Order = null;
 try {
   const OrderModel = require('../../modules/Aggregator/models/order');
@@ -126,9 +115,7 @@ try {
   console.warn('No aggregator order model or error loading it:', err);
 }
 
-/**
- * NEW: Load Invoice model for Payment
- */
+// Invoice
 let Invoice = null;
 try {
   const InvoiceModel = require('../../modules/Payment/models/invoice');
@@ -166,9 +153,13 @@ if (AffiliateLink && AffiliateLink.associate) {
   AffiliateLink.associate({ User, Discount, Campaign });
 }
 
-// Commission associations
+// ADDED: Commission associations
 if (Commission && Commission.associate) {
-  Commission.associate({ User });
+  // Pass references so Commission can do Commission.belongsTo(User), Commission.belongsTo(Order)
+  Commission.associate({
+    User,
+    Order
+  });
 }
 
 // Dispute associations
@@ -176,9 +167,17 @@ if (Dispute && Dispute.associate) {
   Dispute.associate({ Commission });
 }
 
-/**
- * Chat associations
- */
+// ADDED: If Order has an associate method, call it
+if (Order && Order.associate) {
+  Order.associate({ Retailer });
+}
+
+// Invoice associations
+if (Invoice && Invoice.associate) {
+  Invoice.associate({ Retailer });
+}
+
+// Chat
 if (ChatRoom && ChatRoom.associate) {
   ChatRoom.associate({ ChatRoomParticipant, Message });
 }
@@ -187,18 +186,6 @@ if (ChatRoomParticipant && ChatRoomParticipant.associate) {
 }
 if (Message && Message.associate) {
   Message.associate({ ChatRoom });
-}
-
-// Aggregator Order associations
-if (Order && Order.associate) {
-  // e.g. Order.associate({ Retailer });
-}
-
-/**
- * If Invoice needs association, do it here, e.g. linking to Retailer
- */
-if (Invoice && Invoice.associate) {
-  Invoice.associate({ Retailer });
 }
 
 /**
@@ -219,5 +206,5 @@ module.exports = {
   ChatRoomParticipant,
   Message,
   Order,
-  Invoice // <---- ADDED
+  Invoice
 };

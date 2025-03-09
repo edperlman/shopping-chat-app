@@ -1,35 +1,59 @@
 /**
  * modules/Chat/controllers/chatController.js
  *
- * Example minimal controllers for Chat.
+ * Handles creating chat rooms (1-on-1 or group), fetching message history,
+ * sending messages, adding participants, and (newly) fetching room info (C6 fix).
  */
+
 const { ChatRoom, ChatRoomParticipant, Message } = require('../../../src/models');
 
-// Create a new 1-on-1 or group chat room
+/**
+ * POST /chat/rooms
+ * Creates a new chat (1-on-1 or group).
+ * Body example:
+ * {
+ *   "isGroup": false,
+ *   "participants": [ 5 ],
+ *   "title": "My 1-on-1 Chat"
+ * }
+ */
 exports.createRoom = async (req, res) => {
   try {
-    // body might have { roomName, participantIds: [..] }
-    const { roomName, participantIds } = req.body;
-    if (!participantIds || !Array.isArray(participantIds) || participantIds.length < 1) {
-      return res.status(400).json({ message: 'Must provide participantIds' });
+    const { title, participants, isGroup } = req.body;
+
+    // Validate participants array
+    if (!Array.isArray(participants) || participants.length < 1) {
+      return res.status(400).json({ message: 'Must provide participants (non-empty array of user IDs)' });
     }
 
-    // 1) Create a new ChatRoom
+    // Merge in the requesting user => ensures the creator is always a participant
+    const creatorId = req.user.id;
+    const uniqueParticipantSet = new Set([...participants, creatorId]);
+    const finalParticipantIds = [...uniqueParticipantSet];
+
+    // Create the ChatRoom record
+    // Assuming ChatRoom has columns like: room_name, is_group, created_at, updated_at, etc.
     const newRoom = await ChatRoom.create({
-      room_name: roomName || null
+      room_name: title || null,
+      is_group: Boolean(isGroup)
     });
 
-    // 2) Insert ChatRoomParticipants for each user
-    const participantRows = participantIds.map(pid => ({
+    // Bulk insert ChatRoomParticipant
+    const participantRows = finalParticipantIds.map((userId) => ({
       chat_room_id: newRoom.id,
-      user_id: pid,
-      role: 'member'
+      user_id: userId,
+      role: userId === creatorId ? 'owner' : 'member'
     }));
     await ChatRoomParticipant.bulkCreate(participantRows);
 
     return res.status(201).json({
-      message: 'Chat room created',
-      room: newRoom
+      message: isGroup ? 'Group chat created' : '1-on-1 chat created',
+      room: {
+        id: newRoom.id,
+        isGroup: !!isGroup,
+        title: newRoom.room_name,
+        participants: finalParticipantIds
+      }
     });
   } catch (error) {
     console.error('Error creating chat room:', error);
@@ -37,24 +61,21 @@ exports.createRoom = async (req, res) => {
   }
 };
 
-// Fetch message history in a given room
+/**
+ * GET /chat/rooms/:roomId/messages
+ * Retrieves messages for a specific room, ensuring the requester is a participant.
+ * Query params: ?offset=0&limit=50
+ */
 exports.fetchMessages = async (req, res) => {
   try {
     const { roomId } = req.params;
-
-    // Check if the requesting user is a participant
-    // e.g. if there's a ChatRoomParticipant row with user_id = req.user.id
     const participant = await ChatRoomParticipant.findOne({
-      where: {
-        chat_room_id: roomId,
-        user_id: req.user.id
-      }
+      where: { chat_room_id: roomId, user_id: req.user.id }
     });
     if (!participant) {
       return res.status(403).json({ message: 'You are not in this room' });
     }
 
-    // retrieve messages, possibly with offset/limit
     const { offset = 0, limit = 50 } = req.query;
     const messages = await Message.findAll({
       where: { chat_room_id: roomId },
@@ -70,35 +91,35 @@ exports.fetchMessages = async (req, res) => {
   }
 };
 
-// Send message
+/**
+ * POST /chat/rooms/:roomId/messages
+ * Sends a message if the user is a participant.
+ */
 exports.sendMessage = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const userId = req.user.id; // from your authenticate JWT
+    const userId = req.user.id;
     const { content } = req.body;
+
     if (!content) {
       return res.status(400).json({ message: 'Message content required' });
     }
 
-    // check membership
+    // Check membership
     const participant = await ChatRoomParticipant.findOne({
-      where: {
-        chat_room_id: roomId,
-        user_id: userId
-      }
+      where: { chat_room_id: roomId, user_id: userId }
     });
     if (!participant) {
       return res.status(403).json({ message: 'You are not in this room' });
     }
 
-    // insert message
     const newMsg = await Message.create({
       chat_room_id: roomId,
       sender_id: userId,
       content
     });
 
-    // if you want real-time broadcast via Socket.io
+    // Optional real-time broadcast
     if (req.io) {
       req.io.to(`room_${roomId}`).emit('newMessage', {
         id: newMsg.id,
@@ -118,21 +139,88 @@ exports.sendMessage = async (req, res) => {
   }
 };
 
-// Example for group membership changes
+/**
+ * POST /chat/rooms/:roomId/participants
+ * Add a user to a group chat, if the request user is allowed.
+ */
 exports.addParticipant = async (req, res) => {
   try {
     const { roomId } = req.params;
     const { userIdToAdd } = req.body;
-    // check if req.user is admin or has permission
-    // then add userIdToAdd to ChatRoomParticipants
+
+    if (!userIdToAdd) {
+      return res.status(400).json({ message: 'Missing userIdToAdd' });
+    }
+
+    // Check if the request user is in this room
+    const participant = await ChatRoomParticipant.findOne({
+      where: { chat_room_id: roomId, user_id: req.user.id }
+    });
+    if (!participant) {
+      return res.status(403).json({ message: 'You are not in this room or not allowed' });
+    }
+
+    // Insert new participant row
     const newParticipant = await ChatRoomParticipant.create({
       chat_room_id: roomId,
       user_id: userIdToAdd,
       role: 'member'
     });
-    return res.status(201).json({ message: 'Participant added', data: newParticipant });
+
+    return res.status(201).json({
+      message: 'Participant added',
+      data: newParticipant
+    });
   } catch (error) {
     console.error('Error adding participant:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+/**
+ * GET /chat/rooms/:roomId
+ * Return chat room info (including participants) for the user if they are in the room.
+ */
+exports.getRoomInfo = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user.id;
+
+    // 1) Confirm the requesting user is in ChatRoomParticipant
+    const participant = await ChatRoomParticipant.findOne({
+      where: {
+        chat_room_id: roomId,
+        user_id: userId
+      }
+    });
+    if (!participant) {
+      return res.status(403).json({ message: 'You are not in this room' });
+    }
+
+    // 2) Fetch the ChatRoom record
+    const room = await ChatRoom.findByPk(roomId);
+    if (!room) {
+      return res.status(404).json({ message: 'Chat room not found' });
+    }
+
+    // 3) Fetch participants
+    const participantRows = await ChatRoomParticipant.findAll({
+      where: { chat_room_id: roomId }
+    });
+    const participantIds = participantRows.map((row) => row.user_id);
+
+    // 4) Return the room details plus participant IDs
+    return res.status(200).json({
+      room: {
+        id: room.id,
+        isGroup: !!room.is_group,
+        title: room.room_name,
+        createdAt: room.created_at
+      },
+      participants: participantIds
+    });
+  } catch (error) {
+    console.error('Error getting room info:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
